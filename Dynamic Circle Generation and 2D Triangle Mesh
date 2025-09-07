@@ -1,1 +1,226 @@
 
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Assignment 2- Part A and Part B</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+            display: block;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Part A: Dynamic Circle Generation</h1>
+    <canvas id="circleCanvas" width="800" height="400"></canvas>
+
+    <h1>Part B: 2D Triangle Mesh</h1>
+    <canvas id="meshCanvas" width="800" height="400"></canvas>
+
+    <script>
+        // Part A
+        const circleCanvas = document.getElementById('circleCanvas');
+        const circleGl = circleCanvas.getContext('webgl');
+
+        if (!circleGl) {
+            alert("WebGL is not supported by your browser.");
+            throw new Error("WebGL not supported");
+        }
+
+        const circleVertexShaderSource = `
+            attribute vec2 a_position;
+            attribute vec4 a_color;
+            varying vec4 v_color;
+            void main() {
+                gl_Position = vec4(a_position, 0.0, 1.0);
+                v_color = a_color;
+            }
+        `;
+
+        const circleFragmentShaderSource = `
+            precision mediump float;
+            varying vec4 v_color;
+            void main() {
+                gl_FragColor = v_color;
+            }
+        `;
+
+        function compileShader(gl, source, type) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error("Error compiling shader:", gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        const circleVertexShader = compileShader(circleGl, circleVertexShaderSource, circleGl.VERTEX_SHADER);
+        const circleFragmentShader = compileShader(circleGl, circleFragmentShaderSource, circleGl.FRAGMENT_SHADER);
+
+        const circleProgram = circleGl.createProgram();
+        circleGl.attachShader(circleProgram, circleVertexShader);
+        circleGl.attachShader(circleProgram, circleFragmentShader);
+        circleGl.linkProgram(circleProgram);
+
+        if (!circleGl.getProgramParameter(circleProgram, circleGl.LINK_STATUS)) {
+            console.error("Error linking program:", circleGl.getProgramInfoLog(circleProgram));
+        }
+
+        circleGl.useProgram(circleProgram);
+
+        const circlePositionLocation = circleGl.getAttribLocation(circleProgram, 'a_position');
+        const circleColorLocation = circleGl.getAttribLocation(circleProgram, 'a_color');
+
+        const circlePositionBuffer = circleGl.createBuffer();
+        circleGl.bindBuffer(circleGl.ARRAY_BUFFER, circlePositionBuffer);
+
+        const circleColorBuffer = circleGl.createBuffer();
+
+        let circles = [];
+
+        function createCircleVertices(centerX, centerY, radius, segments = 43) {
+            const vertices = [];
+            for (let i = 0; i <= segments; i++) {
+                const angle = (i / segments) * 2 * Math.PI;
+                vertices.push(centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle));
+            }
+            return vertices;
+        }
+
+        function randomColor() {
+            return [Math.random(), Math.random(), Math.random(), 1.0];
+        }
+
+        circleCanvas.addEventListener('click', (event) => {
+            const rect = circleCanvas.getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / circleCanvas.width) * 2 - 1;
+            const y = -((event.clientY - rect.top) / circleCanvas.height) * 2 + 1;
+
+            const radius = 0.2;
+            const vertices = createCircleVertices(x, y, radius);
+            const colors = Array(vertices.length / 2).fill(randomColor()).flat();
+
+            circles.push({ vertices, colors });
+            renderCircles();
+        });
+
+        function renderCircles() {
+            circleGl.clear(circleGl.COLOR_BUFFER_BIT);
+
+            circles.forEach(circle => {
+                circleGl.bindBuffer(circleGl.ARRAY_BUFFER, circlePositionBuffer);
+                circleGl.bufferData(circleGl.ARRAY_BUFFER, new Float32Array(circle.vertices), circleGl.STATIC_DRAW);
+                circleGl.enableVertexAttribArray(circlePositionLocation);
+                circleGl.vertexAttribPointer(circlePositionLocation, 2, circleGl.FLOAT, false, 0, 0);
+
+                circleGl.bindBuffer(circleGl.ARRAY_BUFFER, circleColorBuffer);
+                circleGl.bufferData(circleGl.ARRAY_BUFFER, new Float32Array(circle.colors), circleGl.STATIC_DRAW);
+                circleGl.enableVertexAttribArray(circleColorLocation);
+                circleGl.vertexAttribPointer(circleColorLocation, 4, circleGl.FLOAT, false, 0, 0);
+
+                circleGl.drawArrays(circleGl.TRIANGLE_FAN, 0, circle.vertices.length / 2);
+            });
+        }
+
+        circleGl.clearColor(0.0, 0.0, 0.0, 1.0);
+        renderCircles();
+
+        // Part B
+        const meshCanvas = document.getElementById('meshCanvas');
+        const meshGl = meshCanvas.getContext('webgl');
+
+        if (!meshGl) {
+            alert("WebGL is not supported by your browser.");
+            throw new Error("WebGL not supported");
+        }
+
+        const meshVertexShaderSource = `
+            attribute vec2 a_position;
+            attribute vec4 a_color;
+            varying vec4 v_color;
+            void main() {
+                gl_Position = vec4(a_position, 0.0, 1.0);
+                v_color = a_color;
+            }
+        `;
+
+        const meshFragmentShaderSource = `
+            precision mediump float;
+            varying vec4 v_color;
+            void main() {
+                gl_FragColor = v_color;
+            }
+        `;
+
+        const meshVertexShader = compileShader(meshGl, meshVertexShaderSource, meshGl.VERTEX_SHADER);
+        const meshFragmentShader = compileShader(meshGl, meshFragmentShaderSource, meshGl.FRAGMENT_SHADER);
+
+        const meshProgram = meshGl.createProgram();
+        meshGl.attachShader(meshProgram, meshVertexShader);
+        meshGl.attachShader(meshProgram, meshFragmentShader);
+        meshGl.linkProgram(meshProgram);
+
+        if (!meshGl.getProgramParameter(meshProgram, meshGl.LINK_STATUS)) {
+            console.error("Error linking program:", meshGl.getProgramInfoLog(meshProgram));
+        }
+
+        meshGl.useProgram(meshProgram);
+
+        const meshPositionLocation = meshGl.getAttribLocation(meshProgram, 'a_position');
+        const meshColorLocation = meshGl.getAttribLocation(meshProgram, 'a_color');
+
+        const meshPositionBuffer = meshGl.createBuffer();
+        meshGl.bindBuffer(meshGl.ARRAY_BUFFER, meshPositionBuffer);
+
+        const meshColorBuffer = meshGl.createBuffer();
+
+        // Generate mesh with 45 vertices (15 triangles)
+        const meshVertices = [];
+        const meshColors = [];
+        const radius = 0.5;
+        const centerX = 0.0;
+        const centerY = 0.0;
+        const segments = 15; // 15 triangles => 45 vertices
+
+        for (let i = 0; i < segments; i++) {
+            const angle1 = (i / segments) * 2 * Math.PI;
+            const angle2 = ((i + 1) / segments) * 2 * Math.PI;
+
+            // Center vertex
+            meshVertices.push(centerX, centerY);
+            meshColors.push(Math.random(), Math.random(), Math.random(), 1.0);
+
+            // First perimeter vertex
+            meshVertices.push(centerX + radius * Math.cos(angle1), centerY + radius * Math.sin(angle1));
+            meshColors.push(Math.random(), Math.random(), Math.random(), 1.0);
+
+            // Second perimeter vertex
+            meshVertices.push(centerX + radius * Math.cos(angle2), centerY + radius * Math.sin(angle2));
+            meshColors.push(Math.random(), Math.random(), Math.random(), 1.0);
+        }
+
+        function renderMesh() {
+            meshGl.clear(meshGl.COLOR_BUFFER_BIT);
+
+            meshGl.bindBuffer(meshGl.ARRAY_BUFFER, meshPositionBuffer);
+            meshGl.bufferData(meshGl.ARRAY_BUFFER, new Float32Array(meshVertices), meshGl.STATIC_DRAW);
+            meshGl.enableVertexAttribArray(meshPositionLocation);
+            meshGl.vertexAttribPointer(meshPositionLocation, 2, meshGl.FLOAT, false, 0, 0);
+
+            meshGl.bindBuffer(meshGl.ARRAY_BUFFER, meshColorBuffer);
+            meshGl.bufferData(meshGl.ARRAY_BUFFER, new Float32Array(meshColors), meshGl.STATIC_DRAW);
+            meshGl.enableVertexAttribArray(meshColorLocation);
+            meshGl.vertexAttribPointer(meshColorLocation, 4, meshGl.FLOAT, false, 0, 0);
+
+            meshGl.drawArrays(meshGl.TRIANGLES, 0, meshVertices.length / 2);
+        }
+
+        meshGl.clearColor(0.0, 0.0, 0.0, 1.0);
+        renderMesh();
+    </script>
+</body>
+</html>
